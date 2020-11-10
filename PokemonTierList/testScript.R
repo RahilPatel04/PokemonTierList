@@ -1,17 +1,22 @@
 library(MASS)
 library(devtools)
 library(ggplot2)
-pokemons <- read.csv("https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/PokemonStats.csv")
+library(ggord)
+pokemons <- read.csv("https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/TrainingPokeData.csv")
+testPokeData <- read.csv("https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/TestPokeData.csv")
+
+CompareAccuracy <- read.csv("https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/PokemonStats.csv")
 
 #Pre process the data
 
 # Create Tiers
-maxStat <- max(pokemons$base_total)
-minStat <- min(pokemons$base_total)
-df = pokemons
 
-FindTiers <- function(numTiers)
+# FindTiers takes in number of tiers and the data it wants to put the tiers in
+FindTiers <- function(numTiers, pokemonDataInput)
 {
+  maxStat <- max(pokemonDataInput$base_total)
+  minStat <- min(pokemonDataInput$base_total)
+  df = pokemonDataInput
   section =  (maxStat-minStat)/numTiers;
   df$tier <- 0
   for (row in 1:nrow(df)) 
@@ -32,11 +37,15 @@ FindTiers <- function(numTiers)
   return(df)
   
 }
-df = FindTiers(3)
+# Update the pokemon data with the tiers
+tiers = 3
+pokemons = FindTiers(tiers, pokemons)
+CompareAccuracy = FindTiers(tiers, CompareAccuracy)
+
 
 # Take out the name column
-pokeData <- df[,2:ncol(df)]
-
+pokeData <- pokemons[,2:ncol(pokemons)]
+CompareAccuracyData <- CompareAccuracy[,2:ncol(CompareAccuracy)]
 
 # run lda on the tier column
 ldaData <- lda(tier~., pokeData)
@@ -45,16 +54,19 @@ ldaData$scaling
 ldaData$prior
 
 # predict the ldaData on the pokeData that we already have. I think we can put the test data in pokeData place
-predictionData <- predict(ldaData, pokeData)
+predictionData <- predict(ldaData, testPokeData)
 # I think this data is that each point under lda 1 or 2 is calculated by the coefficents of lda 1 and the columns
-predictionData$class
+predictionData$class[1]
  
 # See how accurate our prediction was and maybe tune it?
 # Table gives you: column is what the predictor said it was and row is what its suppose to be
-predictTable <- table(predictionData$class, pokeData[,ncol(pokeData)])
+predictTable <- table(predictionData$class, CompareAccuracyData[1:49,ncol(CompareAccuracyData)])
 predictTable
 
 # Run a plot to show the distribution of them
 str(pokeData$tier)
 ggord(ldaData, factor(pokeData$tier))
+
+# Create a new plot with the new certain pokemon classified
+print(predictionData$class[1])
 
