@@ -4,6 +4,7 @@ library(MASS)
 library(devtools)
 library(ggplot2)
 library(ggord)
+library(pracma)
 
 # Define UI for application
 ui <- fluidPage(theme = shinytheme("united"),
@@ -39,7 +40,16 @@ ui <- fluidPage(theme = shinytheme("united"),
     )
    ),
    tabPanel("Closest Pokemon",
-   
+    sidebarLayout(
+      sidebarPanel(
+        h3("What Pokemons are Similar to Yours?"),
+        numericInput("KClosestID","Please Input the K Closests Pokemons you Want?", value = 5)
+      ),
+      mainPanel(
+        plotOutput("ClosestPokeID"),
+        tableOutput("ClosestPokeIDData")
+      )
+    )        
    )
   )  
 )
@@ -74,9 +84,138 @@ server <- function(input, output) {
         
     }
     
+    # Knn function - takes in the pokemon stats and returns a list of K closest pokemons names
+    
+    knnknn <- function(hps, atak, spatak, defse, spdefse, spe, bT, theK, pokeData)
+    {
+      datab <- pokeData
+      tAxis <- datab$hp
+      uAxis <- datab$attack
+      vAxis <- datab$sp_attack
+      wAxis <- datab$defense
+      xAxis <- datab$sp_defense
+      yAxis <- datab$speed
+      zAxis <- datab$base_total
+      
+      
+      
+      #input values you want to test
+      t2 <- hps
+      u2 <- atak
+      v2 <- spatak
+      w2 <- defse
+      x2 <- spdefse
+      y2 <- spe
+      z2 <- bT
+      
+      best_array <- xAxis
+      i <- 1
+      while(i <= NROW(xAxis))
+      {
+        #distance array
+        best_array[i] <- sqrt(((x2-xAxis[i])*(x2-xAxis[i]))+((y2-yAxis[i])*(y2-yAxis[i])) + ((t2-tAxis[i])*(t2-tAxis[i]))+((u2-uAxis[i])*(u2-uAxis[i])) + ((v2-vAxis[i])*(v2-vAxis[i]))+((w2-wAxis[i])*(w2-wAxis[i])) + ((z2-zAxis[i])*(z2-zAxis[i])))
+        #((x2-xAxis[i])*(x2-xAxis[i]))+((y2-yAxis[i])*(y2-yAxis[i]))
+        #((t2-tAxis[i])*(t2-tAxis[i]))+((u2-uAxis[i])*(u2-uAxis[i]))
+        #((v2-vAxis[i])*(v2-vAxis[i]))+((w2-wAxis[i])*(w2-wAxis[i]))
+        #((z2-zAxis[i])*(z2-zAxis[i]))
+        
+        i <- i + 1
+      }
+      
+      
+      namer <- datab$name
+      name <- namer[0]
+      
+      #the k value (number of pokemons to display)
+      k <- theK
+      names = character(k)
+      answers = integer(k)
+      ix <- 1
+      while(ix <= k)
+      {
+        answers[ix] <- 1000
+        ix <- ix + 1
+      }
+      
+      ans <- 10000
+      u <- 1
+      
+      while(u <= NROW(best_array))
+      {
+        if(best_array[u] < ans)
+        {
+          ans <- best_array[u]
+          name <- namer[u]
+        }
+        if(best_array[u] <= answers[k])
+        {
+          name_count <- 1
+          while(name_count <= k)
+          {
+            if(best_array[u] < answers[name_count])
+            {
+              push <- answers[name_count]
+              push_name <- names[name_count]
+              ii <- name_count + 1
+              while(ii <= k)
+              {
+                push2 <- answers[ii]
+                push_name2 <- names[ii]
+                answers[ii] <- push
+                names[ii] <- push_name
+                push <- push2
+                push_name <- push_name2
+                ii <- ii + 1
+              }
+              
+              answers[name_count] <- best_array[u]
+              names[name_count] = as.character(namer[u])
+              break
+            }
+            name_count <- name_count + 1
+          }
+        }
+        
+        u <- u + 1
+      }
+      
+      #display all stats in list
+      dataC <- read.csv("https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/TrainingPokeData.csv")
+      answer_set <- 0
+      as1 <- 0
+      co <- 1
+      while(co <= NROW(names))
+      {
+        c02 <- 1
+        while(c02 < NROW(dataC$name))
+        {
+          dataC$name[c02]
+          names[1]
+          if(strcmp(names[co],dataC$name[c02]))
+          {
+            if(as1 == 1)
+            {
+              answer_set <- rbind(answer_set,dataC[c02,])
+            }
+            if(as1 == 0)
+            {
+              answer_set <- dataC[c02,]
+              as1 <- 1
+            }
+          }
+          c02 <- c02 + 1
+        }
+        co <- co + 1
+      }
+      answer_set
+      distance <- answers
+      answer_set <- cbind(answer_set,distance)
+      return(answer_set)
+    }
+    
     output$ldaPlotOutput <- renderPlot({
         # Get our Pokemon Training Data
-        pokemons <- read.csv("https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/TrainingPokeData.csv")
+        pokemons <<- read.csv("https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/TrainingPokeData.csv")
        
          #Pre Process our Data
         
@@ -94,16 +233,30 @@ server <- function(input, output) {
     
     observeEvent(input$Submit, {
         # Calculate Base Total
+        hp = input$hpID
+        atk = input$attackID
+        spAtk = input$SPAttackID
+        def = input$defenseID
+        spDef = input$SPDefenseID
+        speed = input$speedID
+        
         baseTotal = input$hpID + input$attackID + input$SPAttackID + input$defenseID + input$SPDefenseID + input$speedID
         
         classifyPokemon <- data.frame(hp = input$hpID, attack = input$attackID, sp_attack = input$SPAttackID, defense = input$defenseID, sp_defense = input$SPDefenseID, speed = input$speedID, base_total = baseTotal)
-        print(classifyPokemon)
         
         output$ClassifierOutput <- renderText({
            # predict the ldaData on the pokemon that the user gives us
            predictionData <- predict(ldaData, classifyPokemon)
            # Output the class that the pokemon belongs to
            predictionData$class[1]
+        })
+        
+        output$ClosestPokeID <- renderPlot({
+          closestPokemonsKNN <- knnknn(hp, atk, spAtk, def, spDef, speed, baseTotal, input$KClosestID, pokemons)
+          output$ClosestPokeIDData <- renderTable({
+            closestPokemonsKNN
+          })
+          ggplot(closestPokemonsKNN, aes(x = reorder(name, distance), y = distance, fill=name)) + geom_bar(stat = "identity")
         })
     })
 }
