@@ -10,9 +10,10 @@ library(pracma)
 ui <- fluidPage(theme = shinytheme("united"),
   navbarPage("Navigation Bar",
    tabPanel("Welcome",
-            
+    h1("Pokemon Tier List"),
+    img(src = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/Squirtle_Squad.png", height = 478, width = 640)      
    ),             
-   tabPanel("Pokemon Tier List",
+   tabPanel("Classify Pokemon",
     # Application title
     titlePanel("Pokemon Tier List"),
     
@@ -34,8 +35,8 @@ ui <- fluidPage(theme = shinytheme("united"),
         # Output 
         mainPanel(
             plotOutput("ldaPlotOutput"),
-            h3("Your Pokemon is in Tier:"),
-            textOutput("ClassifierOutput"),
+            h3("Pokemon Classified as"),
+            uiOutput("ClassifierOutput"),
         )
     )
    ),
@@ -244,11 +245,27 @@ server <- function(input, output) {
         
         classifyPokemon <- data.frame(hp = input$hpID, attack = input$attackID, sp_attack = input$SPAttackID, defense = input$defenseID, sp_defense = input$SPDefenseID, speed = input$speedID, base_total = baseTotal)
         
-        output$ClassifierOutput <- renderText({
+        output$ClassifierOutput <- renderUI({
            # predict the ldaData on the pokemon that the user gives us
            predictionData <- predict(ldaData, classifyPokemon)
            # Output the class that the pokemon belongs to
-           predictionData$class[1]
+           classVal = predictionData$class[1]
+           
+           result = switch(classVal,
+                           "1" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier1.png",
+                           "2" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier2.png",
+                           "3" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier3.png",
+                           "4" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier4.png",
+                           "5" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier5.png",
+                           "6" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier6.png",
+                           "7" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier7.png",
+                           "8" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier8.png",
+                           "9" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier9.png",
+                           "10" = "https://raw.githubusercontent.com/RahilPatel04/PokemonTierList/main/FinishedTier10.png"
+           )
+           
+           img(src = result, height = 300, width = 600)
+           
         })
         
         output$ClosestPokeID <- renderPlot({
